@@ -1,0 +1,1 @@
+﻿Table credit.schedule_capture. Primary key capture_id.

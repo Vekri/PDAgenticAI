@@ -1,0 +1,1 @@
+﻿Loads the five input tables. Code: warehouse.py and load_credit_inputs.py. Incremental JSON is in incremental.

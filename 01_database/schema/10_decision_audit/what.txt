@@ -1,0 +1,1 @@
+﻿Output table credit.decision_audit. Primary key (run_id, step).

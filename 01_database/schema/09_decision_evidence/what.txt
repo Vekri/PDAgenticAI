@@ -1,0 +1,1 @@
+﻿Output table credit.decision_evidence. Primary key (run_id, evidence_order).

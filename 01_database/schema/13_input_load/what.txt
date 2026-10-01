@@ -1,0 +1,1 @@
+﻿Table credit.input_load. Primary key load_id.

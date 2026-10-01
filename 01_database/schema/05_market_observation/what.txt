@@ -1,0 +1,1 @@
+﻿Input table credit.market_observation. Primary key application_id. Foreign key to loan_application.

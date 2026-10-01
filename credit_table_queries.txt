@@ -1,0 +1,167 @@
+Credit database queries
+Database: credit
+Schema: credit
+Host: localhost
+Port: 5432
+User: postgres
+Password: postgre
+
+The table definitions are created by:
+01_database\migrations\001_credit_platform.sql
+01_database\migrations\002_schedule_capture.sql
+01_database\migrations\003_operator_log.sql
+
+Applied by: app\platform\postgres.py
+
+
+INPUT TABLES
+============
+
+credit.loan_application
+Description: One row per loan file. Primary key application_id.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that loads the first files: 02_data_engineering\load_credit_inputs.py
+Code that loads desktop files: 10_schedule_and_deploy\scheduled_incremental_load.py
+Code that reads it: 02_data_engineering\warehouse.py, 11_operator\operator.py, app\platform\postgres.py
+
+SELECT * FROM credit.loan_application ORDER BY application_id;
+
+
+credit.financial_statement
+Description: Revenue, EBITDA, debt, and debt service for one application.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that reads it: 02_data_engineering\warehouse.py
+
+SELECT * FROM credit.financial_statement ORDER BY application_id;
+
+
+credit.credit_bureau
+Description: Credit score, delinquencies, and bankruptcy for one application.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that reads it: 02_data_engineering\warehouse.py
+
+SELECT * FROM credit.credit_bureau ORDER BY application_id;
+
+
+credit.bank_relationship
+Description: Relationship years, deposits, and whether prior loans are current.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that reads it: 02_data_engineering\warehouse.py
+
+SELECT * FROM credit.bank_relationship ORDER BY application_id;
+
+
+credit.market_observation
+Description: Revenue growth and industry outlook for one application.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that reads it: 02_data_engineering\warehouse.py
+
+SELECT * FROM credit.market_observation ORDER BY application_id;
+
+
+Joined loan file
+Description: The five input tables assembled on application_id. This is the read the agents use.
+Code: 02_data_engineering\warehouse.py
+
+SELECT *
+FROM credit.loan_application AS a
+JOIN credit.financial_statement AS f USING (application_id)
+JOIN credit.credit_bureau AS b USING (application_id)
+JOIN credit.bank_relationship AS r USING (application_id)
+JOIN credit.market_observation AS m USING (application_id)
+ORDER BY a.application_id;
+
+
+SCORING AND DECISION TABLES
+===========================
+
+credit.feature_record
+Description: The conformed loan file for one run. Primary key run_id.
+Code that writes it: 02_data_engineering\warehouse.py
+Decision step that fills it: 07_decision\orchestrator.py through warehouse.publish_decision
+
+SELECT * FROM credit.feature_record ORDER BY built_at;
+
+
+credit.decision
+Description: APPROVE, REVIEW, or REJECT, the PD, the grade, the memo, and the ratios.
+Code that writes it: 02_data_engineering\warehouse.py
+Code that reads it: 02_data_engineering\warehouse.py, 11_operator\operator.py, app\platform\postgres.py
+Agents that produce the result: 06_agents\agents.py and 06_agents\policy_rules.py
+Scorecard: 03_ml_scorecard\pd_model.py and 03_ml_scorecard\financials.py
+
+SELECT * FROM credit.decision ORDER BY created_at;
+
+
+credit.decision_check
+Description: Each policy check for a run. Primary key (run_id, check_order).
+Code that writes and reads it: 02_data_engineering\warehouse.py
+Rules: 06_agents\policy_rules.py
+
+SELECT * FROM credit.decision_check ORDER BY run_id, check_order;
+
+
+credit.decision_evidence
+Description: Policy sections cited for a run. Primary key (run_id, evidence_order).
+Code that writes and reads it: 02_data_engineering\warehouse.py
+Retrieval: 04_rag_policy\rag.py
+
+SELECT * FROM credit.decision_evidence ORDER BY run_id, evidence_order;
+
+
+credit.decision_audit
+Description: One row per agent step. Primary key (run_id, step).
+Code that writes and reads it: 02_data_engineering\warehouse.py
+Steps come from: 06_agents\agents.py and 07_decision\orchestrator.py
+
+SELECT * FROM credit.decision_audit ORDER BY run_id, step;
+
+
+credit.latest_decision
+Description: View. The newest decision for each application_id.
+Defined in: 01_database\migrations\001_credit_platform.sql
+Code that reads it: 02_data_engineering\warehouse.py and 11_operator\operator.py
+
+SELECT * FROM credit.latest_decision ORDER BY application_id;
+
+
+VERSIONS, LOADS, AND OPERATOR
+=============================
+
+credit.deployment
+Description: Version stamp for a release. Primary key deployment_id.
+Code that writes it: app\platform\postgres.py
+Version values come from: app\platform\release.py
+
+SELECT * FROM credit.deployment ORDER BY deployed_at;
+
+
+credit.schema_migration
+Description: One row per SQL file already applied. Primary key version.
+Code that writes and reads it: app\platform\postgres.py
+
+SELECT * FROM credit.schema_migration ORDER BY applied_at;
+
+
+credit.input_load
+Description: Each insert or update of an application during a load. Primary key load_id.
+Code that writes it: 02_data_engineering\load_credit_inputs.py and 10_schedule_and_deploy\scheduled_incremental_load.py
+
+SELECT * FROM credit.input_load ORDER BY load_id;
+
+
+credit.schedule_capture
+Description: Each desktop inbox file that was picked up and scored. Primary key capture_id.
+Code that writes it: 10_schedule_and_deploy\scheduled_incremental_load.py
+Code that reads it: 11_operator\operator.py
+
+SELECT * FROM credit.schedule_capture ORDER BY capture_id;
+
+
+credit.operator_log
+Description: Each question asked to the operator. Primary key turn_id.
+Code that writes and reads it: 11_operator\operator.py
+Desk box that calls it: 09_desk\ui.py
+API routes: 08_api\api.py  GET /operator/monitor and POST /operator/chat
+
+SELECT * FROM credit.operator_log ORDER BY turn_id;

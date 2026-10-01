@@ -1,0 +1,187 @@
+How to run the app and what to feed it
+Project: C:\Users\Raja Reddy\Desktop\PDAgenticAI
+
+Open PowerShell and go to the project first:
+
+cd "C:\Users\Raja Reddy\Desktop\PDAgenticAI"
+
+
+1. RUN THE THREE BUILT-IN FILES
+==============================
+
+Command:
+
+.\.venv\Scripts\python -m app
+
+What you feed:
+Nothing. The app already contains Apex, Harbor, and Northwind in app\samples.py.
+
+What you get:
+Apex Manufacturing Co.: APPROVE, PD 3.8%, Low, Debt/EBITDA 2.0x, DSCR 1.62x, score 720
+Harbor Logistics LLC: REVIEW, PD 7.7%
+Northwind Retail Inc.: REJECT, PD 80.7%
+
+
+2. OPEN THE DESK AND TYPE A LOAN
+================================
+
+Command:
+
+$env:DATABASE_URL = "postgresql://postgres:postgre@localhost:5432/credit"
+$env:PD_ENV = "local"
+.\.venv\Scripts\python -m streamlit run 09_desk\ui.py --server.port 8511
+
+Browser:
+
+http://127.0.0.1:8511
+
+What you feed on the screen, section by section:
+
+1. Loan application
+   Business name
+   Industry
+   Years in business
+   Loan purpose
+   Loan amount
+   Term in years
+   Interest rate percent
+   Industry outlook
+
+2. Financial statements
+   Revenue
+   EBITDA
+   Interest expense
+   Net income
+   Current assets
+   Current liabilities
+   Cash
+   Receivables
+   Total assets
+   Existing debt
+   Equity
+   Existing annual debt service
+
+3. Credit bureau
+   Credit score
+   Delinquencies in 12 months
+   Bankruptcy on file, yes or no
+
+4. Internal bank data
+   Relationship years
+   Deposit balance
+   Prior loans are current, yes or no
+
+5. Market
+   Revenue growth percent
+   Officer request
+
+Industry must be one of:
+Manufacturing, Wholesale, Logistics, Professional Services, Healthcare, Retail, Construction, Hospitality, Technology, Agriculture
+
+Industry outlook must be one of:
+Positive, Stable, Negative
+
+Revenue growth on the desk is a percent. Type 5 for 5 percent.
+In a JSON file, revenue_growth is a decimal. Use 0.05 for 5 percent.
+
+Then press Run decision.
+That scores the form and saves a copy in data\decisions.db.
+
+To score a file already in PostgreSQL, type the id in the sidebar and press Decide the stored file.
+Ids already loaded: apex, harbor, northwind, cedar, summit, ridge.
+
+
+3. FEED A NEW JSON FILE
+=======================
+
+Put one .json file in:
+
+C:\Users\Raja Reddy\Desktop\credit-inbox
+
+Then run:
+
+.\.venv\Scripts\python 10_schedule_and_deploy\scheduled_incremental_load.py
+
+The Windows task CreditIncrementalLoad does this every 15 minutes.
+After a successful load, the file moves to:
+
+C:\Users\Raja Reddy\Desktop\credit-inbox\loaded
+
+What you feed. One object, or a list of objects. Copy this and change the values:
+
+[
+  {
+    "application_id": "pine",
+    "business_name": "Pine Wholesale Co.",
+    "industry": "Wholesale",
+    "years_in_business": 9,
+    "loan_amount": 400000,
+    "loan_purpose": "Inventory finance",
+    "loan_term_years": 5,
+    "interest_rate_pct": 8.0,
+    "revenue": 5400000,
+    "ebitda": 700000,
+    "interest_expense": 80000,
+    "net_income": 210000,
+    "current_assets": 1600000,
+    "current_liabilities": 900000,
+    "cash": 220000,
+    "receivables": 480000,
+    "total_assets": 3200000,
+    "existing_debt": 800000,
+    "equity": 1400000,
+    "existing_annual_debt_service": 150000,
+    "credit_score": 700,
+    "delinquencies_12m": 0,
+    "bankruptcy": false,
+    "relationship_years": 4,
+    "deposit_balance": 260000,
+    "prior_loans_current": true,
+    "revenue_growth": 0.04,
+    "industry_outlook": "Stable",
+    "analyst_request": "Analyze this business loan application and assess the risk."
+  }
+]
+
+application_id is the name you will use later, such as pine.
+Use a new id for a new business. Use an existing id to update that business.
+
+The same shape is already used by:
+02_data_engineering\incremental\002_new_applications.json
+That file holds cedar and summit.
+
+
+4. ASK THE OPERATOR
+===================
+
+On the desk, use the Operator box at the bottom. Or run:
+
+.\.venv\Scripts\python -c "from app.operator import ask; print(ask('score pine')['reply'])"
+
+What you can say:
+monitor the process
+list the files
+score apex
+explain harbor
+search credit policy
+load the new inbox file
+
+
+5. WHAT YOU GET BACK
+====================
+
+A recommendation: APPROVE, REVIEW, or REJECT
+A PD, for example 3.8%
+A risk grade: Very Low, Low, Medium, High, or Very High
+Debt/EBITDA and DSCR
+Credit score
+Reason lines
+A memo
+An audit of the agent steps
+
+Stored in PostgreSQL, database credit, schema credit, port 5432:
+
+SELECT * FROM credit.latest_decision ORDER BY application_id;
+
+The other queries are in credit_table_queries.txt.
+What each app file does is in app_what_it_does.txt.

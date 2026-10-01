@@ -1,0 +1,1 @@
+Talk to the whole system. The operator runs monitor, list, score, explain, policy search, and inbox load. Turns are stored in credit.operator_log. Code: operator.py

@@ -1,0 +1,1 @@
+﻿Input table credit.credit_bureau. Primary key application_id. Foreign key to loan_application.

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: pdagentic-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: PD_ENV
+        value: production

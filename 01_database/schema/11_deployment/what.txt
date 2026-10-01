@@ -1,0 +1,1 @@
+﻿Version table credit.deployment. Primary key deployment_id.

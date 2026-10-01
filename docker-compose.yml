@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: credit
+      POSTGRES_PASSWORD: credit
+      POSTGRES_DB: credit
+    ports:
+      - "5436:5432"
+    volumes:
+      - credit_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U credit -d credit"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://credit:credit@postgres:5432/credit
+      PD_ENV: production
+      OLLAMA_HOST: http://host.docker.internal:11434
+    ports:
+      - "8010:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  desk:
+    build: .
+    command: python -m streamlit run 09_desk/ui.py --server.address 0.0.0.0 --server.port 8501
+    environment:
+      DATABASE_URL: postgresql://credit:credit@postgres:5432/credit
+      PD_ENV: production
+      OLLAMA_HOST: http://host.docker.internal:11434
+    ports:
+      - "8502:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  credit_pg:

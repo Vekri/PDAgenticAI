@@ -1,0 +1,1 @@
+﻿Local Ollama memo. Code: llm.py. The policy rules still decide Approve, Review, or Reject.

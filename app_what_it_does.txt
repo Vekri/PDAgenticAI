@@ -1,0 +1,140 @@
+What the app does
+Project: C:\Users\Raja Reddy\Desktop\PDAgenticAI
+Package: app
+Version: 1.1.0
+
+The app is a local credit desk for a business loan. It reads one loan file, runs the agents, and returns APPROVE, REVIEW, or REJECT. It also returns the probability of default, the risk grade, Debt/EBITDA, DSCR, the credit score, the policy reasons, a memo, and an audit trail.
+
+It runs on this PC. It does not call a paid API. If Ollama is running, the memo is drafted locally. If Ollama is off, the memo is written from the decided facts.
+
+The official PD comes from the scorecard in 03_ml_scorecard\pd_model.py. XGBoost is only a cross-check. The recommendation comes from the rules in 06_agents\policy_rules.py. The app does not use race, sex, religion, national origin, age, or marital status.
+
+A credit officer owns the final call. This is decision support for a demo book, not a regulatory capital model.
+
+
+HOW TO RUN
+==========
+
+From C:\Users\Raja Reddy\Desktop\PDAgenticAI
+
+Print Apex, Harbor, and Northwind in the terminal:
+.\.venv\Scripts\python -m app
+
+Open the desk on the local database:
+$env:DATABASE_URL = "postgresql://postgres:postgre@localhost:5432/credit"
+.\.venv\Scripts\python -m streamlit run 09_desk\ui.py --server.port 8511
+
+Start the API:
+.\.venv\Scripts\python -m uvicorn app.api:app --host 127.0.0.1 --port 8011
+
+Database for the stored files:
+Host localhost, port 5432, database credit, user postgres, password postgre.
+
+
+WHAT HAPPENS TO ONE LOAN
+========================
+
+1. The loan file is assembled from five PostgreSQL tables, or from the desk form.
+2. The data agent checks that the file is complete.
+3. The knowledge agent retrieves Credit Policy section 4.2 and Risk Policy section 3.1.
+4. The financial agent calculates the ratios.
+5. The risk agent scores the PD.
+6. The policy agent applies the Approve, Review, and Reject rules.
+7. The orchestrator collects one case.
+8. The decision agent writes the recommendation, the memo, and the audit steps.
+9. The warehouse stores the result in credit.decision and the related output tables.
+
+
+FILES IN app AND WHAT EACH ONE DOES
+===================================
+
+app\__init__.py
+Marks this folder as the Python package and sets version 1.1.0.
+
+app\__main__.py
+Runs when you type python -m app. Scores Apex, Harbor, and Northwind and prints the recommendation, PD, ratios, and reason lines. It does not write to PostgreSQL.
+
+app\config.py
+Holds the project paths, DATABASE_URL, the environment name, and the Ollama address.
+Policy documents are read from 04_rag_policy\knowledge.
+SQL files are read from 01_database\migrations.
+The SQLite desk log is data\decisions.db.
+
+app\schemas.py
+Defines the shape of a loan file and the shape of a decision result. Extra fields are rejected.
+
+app\samples.py
+Builds the first three loan files in code: apex, harbor, and northwind. These are not JSON files.
+
+app\formatting.py
+Formats money, ratios such as 2.0x, and percents such as 3.8%.
+
+app\store.py
+Saves a decision to the local SQLite file data\decisions.db when the desk button Run decision is used.
+
+app\_layer.py
+Loads the real code from the numbered folders so import app... still works.
+
+app\financials.py
+Points to 03_ml_scorecard\financials.py. That file calculates the ratios and the new-loan payment.
+
+app\pd_model.py
+Points to 03_ml_scorecard\pd_model.py. That file is the scorecard, the risk grade, and the XGBoost cross-check.
+
+app\rag.py
+Points to 04_rag_policy\rag.py. That file searches the policy documents.
+
+app\llm.py
+Points to 05_genai\llm.py. That file asks Ollama for the memo, or writes the grounded memo.
+
+app\agents.py
+Points to 06_agents\agents.py. That file is the data, knowledge, financial, risk, policy, orchestrator, and decision agents.
+
+app\policy_rules.py
+Points to 06_agents\policy_rules.py. That file holds the thresholds and chooses APPROVE, REVIEW, or REJECT.
+
+app\orchestrator.py
+Points to 07_decision\orchestrator.py. That file runs the agents in order and packages the decision.
+
+app\api.py
+Points to 08_api\api.py. That file is the HTTP API: health, decide, warehouse decide, policy search, and the operator.
+
+app\operator.py
+Points to 11_operator\operator.py. That file lets you ask the system to monitor, list files, score an id, explain an id, search policy, or load the desktop inbox.
+
+app\data_engineering\__init__.py
+Marks the data-engineering package.
+
+app\data_engineering\warehouse.py
+Points to 02_data_engineering\warehouse.py. That file writes the five input tables and the decision output tables.
+
+app\platform\__init__.py
+Marks the platform package.
+
+app\platform\postgres.py
+Connects to PostgreSQL, applies the SQL files once, and records the deployment id.
+
+app\platform\release.py
+Builds the version stamp: app, pipeline, policy, scorecard, model, and the policy-file hash. The deployment id changes when one of those changes.
+
+
+WHERE THE WORK CONTINUES OUTSIDE app
+====================================
+
+09_desk\ui.py
+The browser screen. Sample buttons preview a file. Run decision saves to SQLite. Decide the stored file reads PostgreSQL and writes the decision there. The Operator box is at the bottom.
+
+02_data_engineering\load_credit_inputs.py
+Creates database credit and loads Apex, Harbor, Northwind, then the incremental JSON.
+
+02_data_engineering\incremental\002_new_applications.json
+Cedar Clinics and Summit Construction.
+
+10_schedule_and_deploy\scheduled_incremental_load.py
+Picks up new JSON from C:\Users\Raja Reddy\Desktop\credit-inbox, loads it, scores it, and moves the file to credit-inbox\loaded.
+
+scripts\run_incremental_load.cmd
+The command the Windows task CreditIncrementalLoad runs every 15 minutes.
+
+credit_table_queries.txt
+The SQL query for every table and the code file that owns it.

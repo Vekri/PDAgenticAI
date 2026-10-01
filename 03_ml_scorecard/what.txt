@@ -1,0 +1,1 @@
+﻿Official PD scorecard and the XGBoost cross-check. Code: pd_model.py and financials.py.

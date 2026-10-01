@@ -1,0 +1,1 @@
+﻿Table credit.schema_migration. Primary key version.

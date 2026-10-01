@@ -1,0 +1,1 @@
+﻿Desktop pickup and the Load and schedule page. Code: scheduled_incremental_load.py and schedule_control.py. Diagram: credit-etl-keys.gif.
