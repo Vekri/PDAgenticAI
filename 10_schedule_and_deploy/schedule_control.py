@@ -9,10 +9,9 @@ from datetime import date, datetime, time
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
-from app.config import ROOT
+from app.config import INBOX, ROOT
 
 TASK_NAME = "CreditIncrementalLoad"
-INBOX = Path(r"C:\Users\Raja Reddy\Desktop\credit-inbox")
 LOADER = ROOT / "scripts" / "run_incremental_load.cmd"
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 

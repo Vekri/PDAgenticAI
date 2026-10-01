@@ -1,11 +1,9 @@
-"""Pick up new loan files from the desktop inbox and load them on a schedule.
+"""Pick up new loan files from the project inbox and load them on a schedule.
 
-Drop one JSON file per batch into:
-    C:\\Users\\Raja Reddy\\Desktop\\credit-inbox
-
+Drop one JSON file per batch into data/inbox under the project folder.
 Each file is a list of loan applications, or one application object.
-The Windows task CreditIncrementalLoad runs this script every 15 minutes.
-A file is moved to credit-inbox\\loaded after the rows are stored and scored.
+The Windows task CreditIncrementalLoad runs this script.
+A file is moved to data/inbox/loaded after the rows are stored and scored.
 Each pickup is written to credit.schedule_capture.
 """
 
@@ -23,7 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-INBOX = Path(r"C:\Users\Raja Reddy\Desktop\credit-inbox")
+from app.config import INBOX
+
 LOADED = INBOX / "loaded"
 PG_USER = "postgres"
 PG_PASSWORD = "postgre"

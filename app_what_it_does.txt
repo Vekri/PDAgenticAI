@@ -131,7 +131,7 @@ Creates database credit and loads Apex, Harbor, Northwind, then the incremental 
 Cedar Clinics and Summit Construction.
 
 10_schedule_and_deploy\scheduled_incremental_load.py
-Picks up new JSON from C:\Users\Raja Reddy\Desktop\credit-inbox, loads it, scores it, and moves the file to credit-inbox\loaded.
+Picks up new JSON from the project folder data\inbox, loads it, scores it, and moves the file to data\inbox\loaded.
 
 scripts\run_incremental_load.cmd
 The command the Windows task CreditIncrementalLoad runs every 15 minutes.

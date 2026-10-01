@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
-from app.config import PD_ENV
+from app.config import INBOX, PD_ENV
 from app.data_engineering.warehouse import decide_stored, land_and_decide, load_application
 from app.formatting import fmt_pct, fmt_ratio, money
 from app.llm import ollama_status
@@ -474,7 +474,7 @@ if page == "Load and schedule":
             except Exception as exc:
                 st.session_state.load_message = str(exc)
     st.markdown("**Incremental files**")
-    st.caption(r"Drop a new .json file in C:\Users\Raja Reddy\Desktop\credit-inbox")
+    st.caption(f"Drop a new .json file in {INBOX}")
     waiting = inbox_waiting()
     st.text("Waiting: " + (", ".join(waiting) if waiting else "none"))
     loaded = inbox_loaded()

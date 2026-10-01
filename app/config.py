@@ -10,6 +10,7 @@ KNOWLEDGE_DIR = ROOT / "04_rag_policy" / "knowledge"
 DATA_DIR = ROOT / "data"
 DB_PATH = Path(os.environ.get("PD_DB_PATH", DATA_DIR / "decisions.db"))
 MIGRATIONS_DIR = ROOT / "01_database" / "migrations"
+INBOX = ROOT / "data" / "inbox"
 
 
 def load_runtime_secrets() -> None:

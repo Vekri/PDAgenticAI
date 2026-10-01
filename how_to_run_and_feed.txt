@@ -96,7 +96,7 @@ Ids already loaded: apex, harbor, northwind, cedar, summit, ridge.
 
 Put one .json file in:
 
-C:\Users\Raja Reddy\Desktop\credit-inbox
+C:\Users\Raja Reddy\Desktop\PDAgenticAI\data\inbox
 
 Then run:
 
@@ -105,7 +105,7 @@ Then run:
 The Windows task CreditIncrementalLoad does this every 15 minutes.
 After a successful load, the file moves to:
 
-C:\Users\Raja Reddy\Desktop\credit-inbox\loaded
+C:\Users\Raja Reddy\Desktop\PDAgenticAI\data\inbox\loaded
 
 What you feed. One object, or a list of objects. Copy this and change the values:
 

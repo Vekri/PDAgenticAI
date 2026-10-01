@@ -11,16 +11,14 @@ import re
 import urllib.request
 from datetime import date, datetime
 from decimal import Decimal
-from pathlib import Path
 
-from app.config import database_url
+from app.config import INBOX, database_url
 from app.data_engineering.warehouse import decide_stored, list_applications
 from app.llm import choose_model, ollama_status
 from app.platform.postgres import connect, postgres_status
 from app.platform.release import release_manifest
 from app.rag import get_index
 
-INBOX = Path(r"C:\Users\Raja Reddy\Desktop\credit-inbox")
 TOOLS = ("monitor", "list", "score", "explain", "search", "load_inbox", "help")
 
 
