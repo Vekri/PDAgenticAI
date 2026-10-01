@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
+from app.config import PD_ENV
 from app.data_engineering.warehouse import decide_stored, land_and_decide, load_application
 from app.formatting import fmt_pct, fmt_ratio, money
 from app.llm import ollama_status
@@ -279,12 +280,19 @@ def render_result(result: DecisionResult, saved: bool) -> None:
         )
 
 
+_cloud = PD_ENV == "production" or Path("/mount/src").exists()
+_kicker = "From data to decision · cloud desk" if _cloud else "From data to decision · local desk"
+_lead = (
+    "Retrieval, specialist agents, and one orchestrator. Memos use the grounded template. No paid API key."
+    if _cloud
+    else "LLM, retrieval, specialist agents, and one orchestrator. Runs on this PC with free local tools. No paid API key."
+)
 st.markdown(
-    """
+    f"""
     <div class="hero">
-      <div class="kicker">From data to decision · local desk</div>
+      <div class="kicker">{html.escape(_kicker)}</div>
       <h1>Agentic AI for Business Loan Decisioning</h1>
-      <p>LLM, retrieval, specialist agents, and one orchestrator. Runs on this PC with free local tools. No paid API key.</p>
+      <p>{html.escape(_lead)}</p>
     </div>
     <div class="trio">
       <div><b>Business problem</b>Volume, manual analysis, inconsistent decisions, and policy that is hard to trace.</div>
@@ -296,18 +304,18 @@ st.markdown(
 )
 
 with st.sidebar:
-    st.markdown("**Local runtime**")
-    st.toggle("Draft the memo with local Ollama", key="use_llm")
+    st.markdown("**Runtime**")
     if llm_status.get("ok"):
+        st.toggle("Draft the memo with local Ollama", key="use_llm")
         models = ", ".join(llm_status.get("models") or []) or "no models pulled"
         st.success(f"Ollama is running. Models: {models}")
     else:
-        st.info("Ollama is not running. Memos use the grounded template. Install Ollama and pull a model to draft locally.")
+        st.success("Memos use the grounded template. Approve, Review, and Reject still come from the scorecard and the policy rules.")
     manifest = release_manifest()
     st.caption(
         f"Release {manifest['app_version']} · policy {manifest['policy_version']} · {manifest['rag_corpus_version']}"
     )
-    st.caption(f"Policy corpus: {len(get_index())} sections on this PC.")
+    st.caption(f"Policy corpus: {len(get_index())} sections.")
     warehouse = postgres_status()
     if warehouse.get("ok"):
         st.success(f"PostgreSQL deployment {warehouse['deployment_id']}")
