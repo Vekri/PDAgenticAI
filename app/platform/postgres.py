@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from app.config import DATABASE_URL, MIGRATIONS_DIR
+import re
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from app.config import MIGRATIONS_DIR, database_url
 from app.platform.release import deployment_id, release_manifest
 
 _READY = False
@@ -17,17 +20,46 @@ def _statements(script: str) -> list[str]:
     return [part.strip() for part in script.split(";") if part.strip()]
 
 
+def _redact(detail: str) -> str:
+    return re.sub(r"://[^/\s]+@", "://", detail)
+
+
+def _candidate_urls(url: str) -> list[str]:
+    parts = urlsplit(url)
+    query = parse_qsl(parts.query, keep_blank_values=True)
+    if not any(key == "channel_binding" for key, _ in query):
+        return [url]
+    stripped = [(key, value) for key, value in query if key != "channel_binding"]
+    fallback = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(stripped), parts.fragment))
+    return [url, fallback]
+
+
 def postgres_configured() -> bool:
-    return bool(DATABASE_URL)
+    return bool(database_url())
 
 
 def connect():
-    if not DATABASE_URL:
-        raise PlatformError("DATABASE_URL is not set.")
+    url = database_url()
+    if not url:
+        raise PlatformError(
+            "DATABASE_URL is not set. In the Streamlit app menu, open Settings, Secrets, "
+            "save DATABASE_URL, then reboot."
+        )
     from psycopg.rows import dict_row
     import psycopg
 
-    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    last_error: Exception | None = None
+    for candidate in _candidate_urls(url):
+        try:
+            return psycopg.connect(candidate, row_factory=dict_row)
+        except Exception as exc:
+            last_error = exc
+            message = str(exc).lower()
+            if "channel binding" not in message and "channel_binding" not in message:
+                raise
+    if last_error is not None:
+        raise last_error
+    raise PlatformError("Could not connect to PostgreSQL.")
 
 
 def migrate() -> list[str]:
@@ -111,7 +143,13 @@ def ensure_platform() -> str:
 
 def postgres_status() -> dict:
     if not postgres_configured():
-        return {"ok": False, "detail": "DATABASE_URL is not set."}
+        return {
+            "ok": False,
+            "detail": (
+                "DATABASE_URL is not set. In the Streamlit app menu, open Settings, "
+                "Secrets, save DATABASE_URL, then reboot."
+            ),
+        }
     try:
         ensure_platform()
         with connect() as connection:
@@ -125,4 +163,4 @@ def postgres_status() -> dict:
             **release_manifest(),
         }
     except Exception as exc:
-        return {"ok": False, "detail": str(exc)}
+        return {"ok": False, "detail": _redact(str(exc))}

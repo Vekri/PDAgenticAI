@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app import __version__
-from app.config import DATABASE_URL
+from app.config import database_url
 from app.data_engineering.warehouse import decide_stored, fetch_decision, land_and_decide, list_applications
 from app.llm import ollama_status
 from app.operator import ask, monitor_snapshot
@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     ensure_db()
     get_index()
     get_ml_model()
-    if DATABASE_URL:
+    if database_url():
         postgres_status()
     yield
 

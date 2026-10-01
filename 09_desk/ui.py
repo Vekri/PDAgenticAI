@@ -335,7 +335,8 @@ with st.sidebar:
         st.button("Decide the stored file", on_click=_decide_stored, use_container_width=True)
         st.button("Store this form, then decide", on_click=_store_form_and_decide, use_container_width=True)
     else:
-        st.caption("PostgreSQL warehouse is off. Set DATABASE_URL to land inputs and decisions there.")
+        st.error("PostgreSQL warehouse is off.")
+        st.caption(warehouse.get("detail") or "DATABASE_URL is not set.")
     history = list_decisions(12)
     if history:
         st.selectbox(

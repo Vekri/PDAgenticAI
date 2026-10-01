@@ -13,7 +13,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from app.config import DATABASE_URL
+from app.config import database_url
 from app.data_engineering.warehouse import decide_stored, list_applications
 from app.llm import choose_model, ollama_status
 from app.platform.postgres import connect, postgres_status
@@ -121,7 +121,7 @@ def run_tool(tool: str, application_id: str | None = None, query: str | None = N
             return {"ok": True, "tool": tool, "text": "No policy section matched."}
         lines = [f"{hit['source']} {hit['section']} {hit['title']}" for hit in hits]
         return {"ok": True, "tool": tool, "text": "\n".join(lines)}
-    if not DATABASE_URL:
+    if not database_url():
         return {"ok": False, "tool": tool, "text": "Set DATABASE_URL before I can read or score the warehouse."}
     if tool == "list":
         with connect() as connection:
@@ -246,7 +246,7 @@ def _choose_with_llm(message: str) -> str | None:
 
 
 def _log(message: str, tool: str, ok: bool, reply: str, source: str) -> None:
-    if not DATABASE_URL:
+    if not database_url():
         return
     try:
         from app.platform.postgres import migrate
