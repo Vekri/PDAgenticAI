@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app import __version__
 from app.config import database_url
 from app.data_engineering.warehouse import decide_stored, fetch_decision, land_and_decide, list_applications
-from app.llm import ollama_status
+from app.llm import groq_status
 from app.operator import ask, monitor_snapshot
 from app.orchestrator import run_decision
 from app.pd_model import get_ml_model
@@ -57,7 +57,7 @@ def health() -> dict:
         "status": "ok",
         "version": __version__,
         "release": release_manifest(),
-        "llm": ollama_status(),
+        "llm": groq_status(),
         "rag_chunks": len(get_index()),
         "saved_decisions": len(list_decisions(500)),
         "postgres": postgres_status(),

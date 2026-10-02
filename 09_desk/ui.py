@@ -17,7 +17,6 @@ import streamlit as st
 from app.config import INBOX, PD_ENV, groq_api_key
 from app.data_engineering.warehouse import decide_stored, land_and_decide, load_application
 from app.formatting import fmt_pct, fmt_ratio, money
-from app.llm import ollama_status
 from app.operator import ask
 from app.schedule_control import (
     WEEKDAYS,
@@ -122,11 +121,6 @@ def preview_case(name: str) -> DecisionResult:
     return run_decision(get_sample(name), use_llm=False, persist=False)
 
 
-@st.cache_data(ttl=30)
-def cached_llm_status() -> dict:
-    return ollama_status()
-
-
 def load_sample(sample_id: str) -> None:
     application = get_sample(sample_id)
     for key, value in to_form(application).items():
@@ -151,10 +145,6 @@ if "result" not in st.session_state:
 
 for key, value in to_form(get_sample("apex")).items():
     st.session_state.setdefault(key, value)
-
-llm_status = cached_llm_status()
-if "use_llm" not in st.session_state:
-    st.session_state.use_llm = bool(llm_status.get("ok"))
 
 
 def render_result(result: DecisionResult, saved: bool) -> None:
@@ -283,9 +273,9 @@ def render_result(result: DecisionResult, saved: bool) -> None:
 _cloud = PD_ENV == "production" or Path("/mount/src").exists()
 _kicker = "From data to decision · cloud desk" if _cloud else "From data to decision · local desk"
 _lead = (
-    "Retrieval, specialist agents, and one orchestrator. Memos use the grounded template. No paid API key."
-    if _cloud
-    else "LLM, retrieval, specialist agents, and one orchestrator. Runs on this PC with free local tools. No paid API key."
+    "Retrieval, specialist agents, and one orchestrator. Memos are drafted by Groq."
+    if groq_api_key()
+    else "Retrieval, specialist agents, and one orchestrator. Memos use the grounded template."
 )
 st.markdown(
     f"""
@@ -305,11 +295,7 @@ st.markdown(
 
 with st.sidebar:
     st.markdown("**Runtime**")
-    if llm_status.get("ok"):
-        st.toggle("Draft the memo with local Ollama", key="use_llm")
-        models = ", ".join(llm_status.get("models") or []) or "no models pulled"
-        st.success(f"Ollama is running. Models: {models}")
-    elif groq_api_key():
+    if groq_api_key():
         st.success("Memos are drafted by Groq. Approve, Review, and Reject still come from the scorecard and the policy rules.")
     else:
         st.success("Memos use the grounded template. Approve, Review, and Reject still come from the scorecard and the policy rules.")
@@ -326,7 +312,7 @@ with st.sidebar:
 
         def _decide_stored() -> None:
             application_id = st.session_state.pg_application_id.strip()
-            st.session_state.result = decide_stored(application_id, use_llm=bool(st.session_state.get("use_llm")))
+            st.session_state.result = decide_stored(application_id, use_llm=False)
             st.session_state.user_ran = True
             with connect() as connection:
                 application = load_application(connection, application_id)
@@ -338,7 +324,7 @@ with st.sidebar:
             st.session_state.result = land_and_decide(
                 application_id,
                 from_form(st.session_state),
-                use_llm=bool(st.session_state.get("use_llm")),
+                use_llm=False,
             )
             st.session_state.user_ran = True
 
@@ -596,7 +582,7 @@ with right:
             with st.spinner("Data, policy retrieval, ratios, PD, policy rules, then the decision..."):
                 st.session_state.result = run_decision(
                     application,
-                    use_llm=bool(st.session_state.get("use_llm")),
+                    use_llm=False,
                     persist=True,
                 )
                 st.session_state.user_ran = True
@@ -609,7 +595,7 @@ with right:
 st.markdown(
     """
     <div class="stages">
-      <div><b>1 · LLM</b><br>Reads the officer request and writes the memo. Ollama if it is running, otherwise a grounded template.</div>
+      <div><b>1 · LLM</b><br>Reads the officer request and writes the memo with Groq. If Groq does not answer, a grounded template states the same facts.</div>
       <div><b>2 · RAG</b><br>Retrieves credit policy, risk policy, lending guidelines, regulatory notes, and past decisions from disk.</div>
       <div><b>3 · Agents</b><br>Data validates. Finance calculates. Risk scores PD. Policy tests the rules.</div>
       <div><b>4 · Orchestrator</b><br>One shared case, one route, one recommendation: approve, review, or reject.</div>

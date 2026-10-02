@@ -5,7 +5,7 @@ Version: 1.1.0
 
 The app is a local credit desk for a business loan. It reads one loan file, runs the agents, and returns APPROVE, REVIEW, or REJECT. It also returns the probability of default, the risk grade, Debt/EBITDA, DSCR, the credit score, the policy reasons, a memo, and an audit trail.
 
-It runs on this PC. It does not call a paid API. If Ollama is running, the memo is drafted locally. If Ollama is off, the memo is written from the decided facts.
+It runs on this PC and on the public desk. Groq drafts the memo from the decided facts. If Groq does not answer, the memo is written from those same facts.
 
 The official PD comes from the scorecard in 03_ml_scorecard\pd_model.py. XGBoost is only a cross-check. The recommendation comes from the rules in 06_agents\policy_rules.py. The app does not use race, sex, religion, national origin, age, or marital status.
 
@@ -55,7 +55,7 @@ app\__main__.py
 Runs when you type python -m app. Scores Apex, Harbor, and Northwind and prints the recommendation, PD, ratios, and reason lines. It does not write to PostgreSQL.
 
 app\config.py
-Holds the project paths, DATABASE_URL, the environment name, and the Ollama address.
+Holds the project paths, DATABASE_URL, the environment name, and the Groq key.
 Policy documents are read from 04_rag_policy\knowledge.
 SQL files are read from 01_database\migrations.
 The SQLite desk log is data\decisions.db.
@@ -85,7 +85,7 @@ app\rag.py
 Points to 04_rag_policy\rag.py. That file searches the policy documents.
 
 app\llm.py
-Points to 05_genai\llm.py. That file asks Ollama for the memo, or writes the grounded memo.
+Points to 05_genai\llm.py. That file asks Groq for the memo, or writes the grounded memo.
 
 app\agents.py
 Points to 06_agents\agents.py. That file is the data, knowledge, financial, risk, policy, orchestrator, and decision agents.

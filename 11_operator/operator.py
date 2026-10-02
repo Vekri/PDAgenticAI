@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import json
 import re
-import urllib.request
 from datetime import date, datetime
 from decimal import Decimal
 
 from app.config import INBOX, database_url
 from app.data_engineering.warehouse import decide_stored, list_applications
-from app.llm import choose_model, ollama_status
+from app.llm import groq_complete, groq_status
 from app.platform.postgres import connect, postgres_status
 from app.platform.release import release_manifest
 from app.rag import get_index
@@ -38,7 +37,7 @@ def monitor_snapshot() -> dict:
     inbox_files = sorted(path.name for path in INBOX.glob("*.json")) if INBOX.exists() else []
     snapshot = {
         "release": release_manifest(),
-        "llm": ollama_status(),
+        "llm": groq_status(),
         "postgres": postgres_status(),
         "inbox_waiting": inbox_files,
         "latest": [],
@@ -105,7 +104,7 @@ def run_tool(tool: str, application_id: str | None = None, query: str | None = N
         snapshot = monitor_snapshot()
         lines = [
             f"Release {snapshot['release']['app_version']} · {snapshot['release']['policy_version']}",
-            f"Ollama {'running' if snapshot['llm'].get('ok') else 'not running'}",
+            f"Groq {'ready' if snapshot['llm'].get('ok') else 'key not set'}",
             f"PostgreSQL {'connected' if snapshot['postgres'].get('ok') else 'unavailable'}",
             f"Inbox files waiting: {len(snapshot['inbox_waiting'])}",
             f"Operator turns stored: {snapshot['operator_turns']}",
@@ -208,35 +207,19 @@ def choose_tool(message: str) -> dict:
     else:
         tool = _choose_with_llm(message) or "help"
     query = message if tool == "search" else None
-    return {"tool": tool, "application_id": application_id, "query": query, "use_llm": "memo" in text or "ollama" in text}
+    return {"tool": tool, "application_id": application_id, "query": query, "use_llm": "memo" in text}
 
 
 def _choose_with_llm(message: str) -> str | None:
-    status = ollama_status()
-    if not status.get("ok"):
-        return None
-    model = choose_model(status.get("models") or [])
-    if not model:
-        return None
     prompt = (
         "Choose one tool for the user message. Reply with only the tool name.\n"
         f"Tools: {', '.join(TOOLS)}\n"
         f"Message: {message}"
     )
-    payload = json.dumps(
-        {"model": model, "prompt": prompt, "stream": False, "options": {"temperature": 0, "num_predict": 20}}
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        status["host"] + "/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            body = json.loads(response.read().decode("utf-8"))
-        answer = (body.get("response") or "").strip().lower()
-    except Exception:
+    answer = groq_complete(prompt, max_tokens=40)
+    if not answer:
         return None
+    answer = answer.lower()
     for name in TOOLS:
         if name in answer:
             return name
@@ -279,35 +262,16 @@ def ask(message: str) -> dict:
     spoken = _speak(message, reply)
     if spoken:
         reply = spoken + "\n\n" + result["text"]
-        source = "ollama"
+        source = "groq"
     _log(message, result["tool"], bool(result.get("ok")), reply, source)
     return {"reply": reply, "tool": result["tool"], "ok": bool(result.get("ok")), "source": source, "snapshot": result.get("snapshot")}
 
 
 def _speak(message: str, facts: str) -> str | None:
-    status = ollama_status()
-    if not status.get("ok"):
-        return None
-    model = choose_model(status.get("models") or [])
-    if not model:
-        return None
     prompt = (
         "You are the credit system operator. Answer the user in two or three sentences. "
         "Use only these facts. Do not invent a decision, a PD, or a file.\n\n"
         f"User: {message}\nFacts:\n{facts}"
     )
-    payload = json.dumps(
-        {"model": model, "prompt": prompt, "stream": False, "options": {"temperature": 0.1, "num_predict": 180}}
-    ).encode("utf-8")
-    request = urllib.request.Request(
-        status["host"] + "/api/generate",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = json.loads(response.read().decode("utf-8"))
-        text = (body.get("response") or "").strip()
-        return text[:1200] or None
-    except Exception:
-        return None
+    text = groq_complete(prompt, max_tokens=220)
+    return text[:1200] if text else None
