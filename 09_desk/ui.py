@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st
 
-from app.config import INBOX, PD_ENV
+from app.config import INBOX, PD_ENV, groq_api_key
 from app.data_engineering.warehouse import decide_stored, land_and_decide, load_application
 from app.formatting import fmt_pct, fmt_ratio, money
 from app.llm import ollama_status
@@ -309,6 +309,8 @@ with st.sidebar:
         st.toggle("Draft the memo with local Ollama", key="use_llm")
         models = ", ".join(llm_status.get("models") or []) or "no models pulled"
         st.success(f"Ollama is running. Models: {models}")
+    elif groq_api_key():
+        st.success("Memos are drafted by Groq. Approve, Review, and Reject still come from the scorecard and the policy rules.")
     else:
         st.success("Memos use the grounded template. Approve, Review, and Reject still come from the scorecard and the policy rules.")
     manifest = release_manifest()

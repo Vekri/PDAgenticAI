@@ -28,6 +28,11 @@ def database_url() -> str:
     return os.environ.get("DATABASE_URL", "").strip()
 
 
+def groq_api_key() -> str:
+    load_runtime_secrets()
+    return os.environ.get("GROQ_API_KEY", "").strip()
+
+
 load_runtime_secrets()
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 PD_ENV = os.environ.get("PD_ENV", "local").strip() or "local"

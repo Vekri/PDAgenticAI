@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import urllib.request
 
-from app.config import OLLAMA_HOST
+from app.config import OLLAMA_HOST, groq_api_key
 from app.formatting import fmt_pct, fmt_ratio, money
 
 PREFERRED_MODELS = ("llama3.2", "llama3.1", "llama3", "mistral", "phi3", "gemma2", "qwen2.5", "llama3.2:latest")
@@ -127,11 +127,50 @@ def draft_with_llm(app, recommendation: str, pd_display: str, grade: str | None,
         return None, "local-template"
 
 
+def draft_with_groq(app, recommendation: str, pd_display: str, grade: str | None, metrics: dict, why: list[str], evidence: list[dict]) -> tuple[str | None, str]:
+    key = groq_api_key()
+    if not key:
+        return None, "local-template"
+    payload = json.dumps(
+        {
+            "model": "openai/gpt-oss-20b",
+            "temperature": 0.2,
+            "max_tokens": 800,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": _prompt(app, recommendation, pd_display, grade, metrics, why, evidence),
+                }
+            ],
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "User-Agent": "pdagentic-desk/1.1",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        text = (body["choices"][0]["message"]["content"] or "").strip()
+        if not text:
+            return None, "local-template"
+        return text[:2000], "groq:openai/gpt-oss-20b"
+    except Exception:
+        return None, "local-template"
+
+
 def write_explanation(app, recommendation: str, pd_display: str, grade: str | None, metrics: dict, why: list[str], evidence: list[dict], use_llm: bool) -> tuple[str, str]:
     text = None
     source = "local-template"
     if use_llm:
         text, source = draft_with_llm(app, recommendation, pd_display, grade, metrics, why, evidence)
+    if not text and groq_api_key():
+        text, source = draft_with_groq(app, recommendation, pd_display, grade, metrics, why, evidence)
     if not text:
         text = template_explanation(app, recommendation, pd_display, grade, metrics, why)
         source = "local-template"
