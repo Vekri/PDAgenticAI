@@ -450,7 +450,139 @@ def show_sql_panel(page_name: str) -> None:
             st.caption("No rows for that file.")
 
 
-page = st.radio("Open", ["Load and schedule", "Decision"], horizontal=True, key="desk_page")
+def show_architecture() -> None:
+    st.markdown("**Architecture and instructions**")
+    st.caption("How one loan file becomes Approve, Review, or Reject, and how to run this desk.")
+
+    st.markdown("**Flow**")
+    st.markdown(
+        """
+1. A loan file arrives from the desk form, the first three built-in files, or a JSON drop in the inbox.
+2. Data engineering writes five input tables in schema `credit`.
+3. Seven agents run in order: Data, Knowledge, Financial, Risk, Policy, Orchestrate, Decision.
+4. The scorecard sets the PD. The policy rules set Approve, Review, or Reject. XGBoost is a cross-check only.
+5. Groq writes the memo. If Groq does not answer, a grounded template states the same facts.
+6. The result is stored in `credit.decision` and the check, evidence, and audit tables.
+        """
+    )
+
+    st.markdown("**Technologies**")
+    st.dataframe(
+        [
+            {"Piece": "Desk", "Technology": "Streamlit"},
+            {"Piece": "API", "Technology": "FastAPI and Uvicorn"},
+            {"Piece": "Database", "Technology": "Neon PostgreSQL in the cloud, PostgreSQL on this PC"},
+            {"Piece": "Driver", "Technology": "psycopg"},
+            {"Piece": "Loan file shape", "Technology": "Pydantic"},
+            {"Piece": "PD scorecard", "Technology": "Explainable scorecard in the scorecard module"},
+            {"Piece": "Cross-check", "Technology": "XGBoost. It does not change the decision."},
+            {"Piece": "Policy search", "Technology": "scikit-learn TF-IDF over the policy markdown"},
+            {"Piece": "Memo", "Technology": "Groq model openai/gpt-oss-20b, then the grounded template"},
+            {"Piece": "Desk log", "Technology": "SQLite file data/decisions.db"},
+            {"Piece": "Source", "Technology": "GitHub Vekri/PDAgenticAI"},
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("**Data engineering**")
+    st.markdown(
+        """
+Code: `02_data_engineering/warehouse.py` and `02_data_engineering/load_credit_inputs.py`.
+
+- **Initial load** writes apex, harbor, and northwind from `app/samples.py`, then the JSON files in `02_data_engineering/incremental`.
+- **Incremental load** reads new JSON from the inbox, upserts the five input tables, scores each file, and moves the JSON into `loaded`.
+- Each pickup is recorded in `credit.input_load` and `credit.schedule_capture`.
+        """
+    )
+    st.code(str(INBOX), language="text")
+
+    st.markdown("**Tables**")
+    st.caption("Database credit, schema credit. Children use the parent key and are removed with the parent.")
+    st.dataframe(
+        [
+            {"Table": "credit.loan_application", "Key": "application_id", "Role": "Input. Business, loan amount, term, purpose."},
+            {"Table": "credit.financial_statement", "Key": "application_id", "Role": "Input. Revenue, EBITDA, debt, equity."},
+            {"Table": "credit.credit_bureau", "Key": "application_id", "Role": "Input. Score, delinquencies, bankruptcy."},
+            {"Table": "credit.bank_relationship", "Key": "application_id", "Role": "Input. Years, deposits, prior loans."},
+            {"Table": "credit.market_observation", "Key": "application_id", "Role": "Input. Revenue growth and outlook."},
+            {"Table": "credit.feature_record", "Key": "run_id", "Role": "Output. Ratios built for one run."},
+            {"Table": "credit.decision", "Key": "run_id", "Role": "Output. Recommendation, PD, grade, memo."},
+            {"Table": "credit.decision_check", "Key": "run_id, check_order", "Role": "Output. Each policy test."},
+            {"Table": "credit.decision_evidence", "Key": "run_id, evidence_order", "Role": "Output. Policy sections cited."},
+            {"Table": "credit.decision_audit", "Key": "run_id, step", "Role": "Output. Agent steps and times."},
+            {"Table": "credit.latest_decision", "Key": "application_id", "Role": "View. Newest decision for each file."},
+            {"Table": "credit.deployment", "Key": "deployment_id", "Role": "Release versions for this run."},
+            {"Table": "credit.input_load", "Key": "load_id", "Role": "Which file was inserted or updated."},
+            {"Table": "credit.schedule_capture", "Key": "capture_id", "Role": "Each inbox pickup."},
+            {"Table": "credit.operator_log", "Key": "turn_id", "Role": "Operator chat turns."},
+            {"Table": "credit.schema_migration", "Key": "version", "Role": "SQL files already applied."},
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.code(
+        "SELECT application_id, recommendation, pd_display, risk_grade\nFROM credit.latest_decision;",
+        language="sql",
+    )
+
+    st.markdown("**Code**")
+    st.dataframe(
+        [
+            {"Folder": "01_database", "Code": "migrations/*.sql", "Work": "Creates schema credit and the tables."},
+            {"Folder": "02_data_engineering", "Code": "warehouse.py, load_credit_inputs.py", "Work": "Loads inputs and publishes decisions."},
+            {"Folder": "03_ml_scorecard", "Code": "financials.py, pd_model.py", "Work": "Ratios, PD, and the XGBoost cross-check."},
+            {"Folder": "04_rag_policy", "Code": "rag.py, knowledge/*.md", "Work": "Retrieves policy sections. Citations only."},
+            {"Folder": "05_genai", "Code": "llm.py", "Work": "Groq memo, then the grounded template."},
+            {"Folder": "06_agents", "Code": "agents.py, policy_rules.py", "Work": "The seven agents and the decision rules."},
+            {"Folder": "07_decision", "Code": "orchestrator.py", "Work": "Runs the agents in one fixed order."},
+            {"Folder": "08_api", "Code": "api.py", "Work": "HTTP routes for health and decide."},
+            {"Folder": "09_desk", "Code": "ui.py", "Work": "This Streamlit desk."},
+            {"Folder": "10_schedule_and_deploy", "Code": "scheduled_incremental_load.py", "Work": "Inbox pickup and the Windows schedule."},
+            {"Folder": "11_operator", "Code": "operator.py, sql_chat.py", "Work": "Plain-language operator and read-only SQL."},
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("**How to run**")
+    st.markdown("**This PC**")
+    st.code(
+        'cd "C:\\Users\\Raja Reddy\\Desktop\\PDAgenticAI"\n'
+        ".\\.venv\\Scripts\\python -m streamlit run 09_desk\\ui.py --server.port 8511",
+        language="powershell",
+    )
+    st.caption("Desk: http://127.0.0.1:8511")
+    st.markdown("**Public desk**")
+    st.code("https://pdagenticai-9zzbuzpyy5es7cu6yk2vlf.streamlit.app/", language="text")
+    st.markdown("**API on this PC**")
+    st.code(
+        ".\\.venv\\Scripts\\python -m uvicorn app.api:app --host 127.0.0.1 --port 8011",
+        language="powershell",
+    )
+    st.caption("Docs: http://127.0.0.1:8011/docs  ·  Score a stored file: POST /warehouse/applications/apex/decide")
+    st.markdown("**Feed a new file**")
+    st.markdown(
+        f"Put a `.json` file in `{INBOX}`, then press **Run incremental load now** on Load and schedule. "
+        "The file is loaded, scored, and moved to the `loaded` folder. "
+        "In JSON, revenue growth is a decimal: `0.05` means 5 percent."
+    )
+    st.caption(
+        "Industries: Manufacturing, Wholesale, Logistics, Professional Services, Healthcare, Retail, "
+        "Construction, Hospitality, Technology, Agriculture. Outlook: Positive, Stable, Negative."
+    )
+    st.caption(
+        "A credit officer owns the final call. This is decision support for a demo book, not a regulatory capital model. "
+        "The file does not use race, sex, religion, national origin, age, or marital status."
+    )
+
+
+page = st.radio(
+    "Open",
+    ["Load and schedule", "Decision", "Architecture and instructions"],
+    horizontal=True,
+    key="desk_page",
+)
 if page == "Load and schedule":
     st.markdown("**Initial load**")
     st.caption("Loads apex, harbor, and northwind, then the JSON files already in the project incremental folder.")
@@ -501,6 +633,10 @@ if page == "Load and schedule":
     if st.session_state.get("load_message"):
         st.text(st.session_state.load_message)
     show_sql_panel("load")
+    st.stop()
+
+if page == "Architecture and instructions":
+    show_architecture()
     st.stop()
 
 show_sql_panel("decision")
